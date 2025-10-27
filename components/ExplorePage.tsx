@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Post, User } from '../types';
 import { Search, Image, Video } from 'lucide-react';
 
@@ -7,48 +7,31 @@ interface ExplorePageProps {
     onOpenProfile: (user: User) => void;
 }
 
-const PostGridItem: React.FC<{ post: Post }> = ({ post }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
+const PostGridItem: React.FC<{ post: Post; onClick: () => void }> = ({ post, onClick }) => {
+    const displayUrl = post.coverMedia?.type === 'video' 
+        ? post.coverMedia.thumbnail 
+        : post.coverMedia?.url;
 
-    const handleMouseEnter = () => {
-        videoRef.current?.play().catch(() => {});
-    };
-
-    const handleMouseLeave = () => {
-        if (videoRef.current) {
-            videoRef.current.pause();
-            videoRef.current.currentTime = 0;
-        }
-    };
-    
     return (
-        <div 
-            className="w-full group relative cursor-pointer break-inside-avoid mb-1"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
+        <button 
+            onClick={onClick}
+            className="w-full aspect-square group relative cursor-pointer overflow-hidden focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-sm"
         >
-            <div className="bg-secondary rounded-md overflow-hidden flex items-center justify-center text-center">
-                {post.coverMedia ? (
+            <div className="bg-secondary flex items-center justify-center text-center h-full w-full">
+                {post.coverMedia && displayUrl ? (
                     <>
                         <div className="absolute top-2 right-2 z-10 bg-black/40 text-white/90 backdrop-blur-sm rounded-full p-1">
                             {post.coverMedia.type === 'video' ? <Video size={12} /> : <Image size={12} />}
                         </div>
-                        {post.coverMedia.type === 'video' ? (
-                            <video
-                                ref={videoRef}
-                                key={post.coverMedia.url}
-                                src={post.coverMedia.url}
-                                loop
-                                muted
-                                playsInline
-                                className="h-full w-full object-cover"
-                            />
-                        ) : (
-                            <img key={post.coverMedia.url} src={post.coverMedia.url} alt={post.title} className="h-full w-full object-cover" />
-                        )}
+                        <img 
+                            key={displayUrl} 
+                            src={displayUrl} 
+                            alt={post.title} 
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                        />
                     </>
                 ) : (
-                    <div className="h-full w-full aspect-square flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 p-2">
+                    <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 p-2">
                         <p className="text-xs font-semibold text-white line-clamp-4">{post.title}</p>
                     </div>
                 )}
@@ -56,22 +39,24 @@ const PostGridItem: React.FC<{ post: Post }> = ({ post }) => {
                      <p className="text-white text-xs font-bold line-clamp-2 [text-shadow:0_1px_2px_var(--tw-shadow-color)] shadow-black">{post.title}</p>
                 </div>
             </div>
-        </div>
+        </button>
     );
 };
 
 
-export const ExplorePage: React.FC<ExplorePageProps> = ({ posts }) => {
+export const ExplorePage: React.FC<ExplorePageProps> = ({ posts, onOpenProfile }) => {
     const [searchQuery, setSearchQuery] = useState('');
 
     const trendingTags = useMemo(() => {
-        const tagCounts = posts.flatMap(p => p.tags).reduce((acc, tag) => {
+        const tagCounts = posts.flatMap(p => p.tags).reduce((acc: Record<string, number>, tag) => {
             acc[tag] = (acc[tag] || 0) + 1;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
         return Object.entries(tagCounts)
-            .sort(([, a], [, b]) => b - a)
+            // FIX: The `sort` method's callback parameters were destructured in a way that could confuse TypeScript's type inference.
+            // Switched to index-based access on the array entries to ensure the values being subtracted are correctly typed as numbers.
+            .sort((a, b) => b[1] - a[1])
             .slice(0, 8)
             .map(([tag]) => tag);
     }, [posts]);
@@ -89,9 +74,14 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ posts }) => {
 
 
     return (
-        <div className="h-full w-full flex flex-col pt-16">
-            {/* Header + Search */}
-            <div className="px-4 pb-4">
+        <div className="h-full w-full flex flex-col">
+            {/* Desktop Header */}
+            <div className="hidden md:block p-4 border-b border-border/50">
+                 <h1 className="text-2xl font-bold">Explore</h1>
+            </div>
+            
+            {/* Search (Shared) */}
+            <div className="p-4">
                  <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
                     <input
@@ -107,7 +97,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ posts }) => {
             {/* Trending Tags */}
             {!searchQuery.trim() && (
                  <div className="px-4 pb-4">
-                    <h2 className="text-lg font-bold mb-3">Trending Topics</h2>
+                    <h2 className="text-lg font-bold mb-3 hidden md:block">Trending Topics</h2>
                      <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-4 px-4 no-scrollbar">
                         {trendingTags.map(tag => (
                              <button key={tag} onClick={() => setSearchQuery(tag)} className="flex-shrink-0 bg-secondary hover:bg-muted text-sm font-semibold px-4 py-2 rounded-lg capitalize transition-colors">
@@ -119,10 +109,14 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ posts }) => {
             )}
            
             {/* Content Grid */}
-            <div className="flex-1 overflow-y-auto px-1 pb-16">
-                <div className="columns-3 gap-1">
+            <div className="flex-1 overflow-y-auto px-1 no-scrollbar">
+                <div className="grid grid-cols-3 gap-1">
                     {filteredPosts.map(post => (
-                        <PostGridItem key={post.id} post={post} />
+                        <PostGridItem 
+                            key={post.id} 
+                            post={post} 
+                            onClick={() => onOpenProfile(post.author)} 
+                        />
                     ))}
                 </div>
                  {filteredPosts.length === 0 && (

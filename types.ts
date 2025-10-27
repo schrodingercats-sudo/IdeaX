@@ -89,4 +89,25 @@ export interface PostFormData {
   is_reel: boolean;
 }
 
-export type Page = 'feed' | 'explore';
+export interface ProfileUpdateFormData {
+  displayName: string;
+  username: string;
+  bio: string;
+  avatarFile: File | null;
+  avatarUrl: string;
+}
+
+export interface Message {
+  id: string;
+  text: string;
+  timestamp: number;
+  senderId: string;
+}
+
+export interface Conversation {
+  id: string;
+  participants: User[];
+  messages: Message[];
+}
+
+export type Page = 'feed' | 'explore' | 'search' | 'messages' | 'reels' | 'notifications';

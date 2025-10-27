@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { User } from '../types';
 import { Loader2, Camera, ChevronLeft } from 'lucide-react';
 import { GoogleIcon } from './icons/GoogleIcon';
-import { GitHubIcon } from './icons/GitHubIcon';
 
 
 interface SignUpPageProps {
@@ -39,23 +38,21 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitc
   };
 
   const handleSocialSignUp = () => {
-    // Simulate getting basic info from a social provider
     setDisplayName('Social User');
     setEmail('social.user@example.com');
-    // Go to step 2 to complete the profile
     setStep(2);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username) return; // Basic validation
+    if (!username) return;
     setIsLoading(true);
     
     const newUser: User = {
       id: `user-${Date.now()}`,
       username: username.toLowerCase(),
       displayName,
-      avatarUrl: avatarPreview || `https://i.pravatar.cc/150?u=${username}`,
+      avatarUrl: avatarPreview || `https://i.pravatar.cc/150?u=${username.toLowerCase()}`,
       bio: '',
       followerCount: 0,
       followingCount: 0,
@@ -63,16 +60,18 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitc
       highlights: [],
     };
     
-    setIsLoading(false);
-    onSignUpSuccess(newUser);
+    setTimeout(() => {
+        setIsLoading(false);
+        onSignUpSuccess(newUser);
+    }, 1000);
   };
 
   return (
     <div className="bg-background text-foreground h-screen w-screen flex flex-col items-center justify-center p-4 relative">
        <div className="absolute inset-0 z-0">
         <img 
-          src="https://www.nasa.gov/sites/default/files/styles/full_width/public/thumbnails/image/as08-14-2383.jpg" 
-          alt="Earth from the moon" 
+          src="https://fastly.picsum.photos/id/498/1920/1080.jpg?hmac=N0eMc4EqYBh8OCurmQWZ3-0-bcNAl1tH52jzOTXKFP0" 
+          alt="Abstract background" 
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -87,10 +86,6 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitc
               <button onClick={handleSocialSignUp} className="w-full flex items-center justify-center gap-3 bg-secondary/80 hover:bg-muted/80 transition-colors font-semibold py-3 px-4 rounded-lg">
                 <GoogleIcon className="h-5 w-5" />
                 Continue with Google
-              </button>
-              <button onClick={handleSocialSignUp} className="w-full flex items-center justify-center gap-3 bg-secondary/80 hover:bg-muted/80 transition-colors font-semibold py-3 px-4 rounded-lg">
-                <GitHubIcon className="h-5 w-5" />
-                Continue with GitHub
               </button>
             </div>
 
@@ -127,7 +122,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitc
               />
               <button 
                 type="submit" 
-                className="w-full bg-primary text-background font-bold py-3 px-4 rounded-lg hover:bg-primary/90 transition-colors"
+                className="w-full bg-primary text-primary-foreground font-bold py-3 px-4 rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Continue with Email
               </button>
@@ -169,7 +164,7 @@ export const SignUpPage: React.FC<SignUpPageProps> = ({ onSignUpSuccess, onSwitc
               />
               <button 
                 type="submit" 
-                className="w-full bg-primary text-background font-bold py-3 px-4 rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center disabled:opacity-70"
+                className="w-full bg-primary text-primary-foreground font-bold py-3 px-4 rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center disabled:opacity-70"
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="animate-spin" /> : 'Finish Sign Up'}

@@ -22,7 +22,7 @@ export const CreatePostPage: React.FC<CreatePostPageProps> = ({ onClose, onCreat
           <X size={24} />
         </button>
       </header>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto no-scrollbar">
         <CreatePostForm onSubmitSuccess={onCreatePost} />
       </div>
     </div>

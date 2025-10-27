@@ -11,7 +11,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onSwitchTo
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   
-  // Simulate creating a user object on login for existing users
   const handleLogin = () => {
     const username = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_') || 'test_user';
     const displayName = username.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -34,8 +33,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onSwitchTo
     <div className="bg-background text-foreground h-screen w-screen flex flex-col items-center justify-center p-4 relative">
       <div className="absolute inset-0 z-0">
         <img 
-          src="https://www.nasa.gov/sites/default/files/styles/full_width/public/thumbnails/image/as08-14-2383.jpg" 
-          alt="Earth from the moon" 
+          src="https://fastly.picsum.photos/id/355/1920/1080.jpg?hmac=zWnl6aMHvU06IvXa6EA_ZMtQLeKOWAtqyRz4M7vX9cM"
+          alt="Abstract background" 
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
@@ -61,7 +60,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, onSwitchTo
             className="w-full bg-secondary/80 text-foreground px-4 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:outline-none transition-shadow placeholder:text-muted-foreground"
             required
           />
-          <button type="submit" className="w-full bg-primary text-background font-bold py-3 px-4 rounded-lg hover:bg-primary/90 transition-colors">
+          <button type="submit" className="w-full bg-primary text-primary-foreground font-bold py-3 px-4 rounded-lg hover:bg-primary/90 transition-colors">
             Log In
           </button>
         </form>

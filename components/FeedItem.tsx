@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Post, PostType, Stage, User } from '../types';
 import { Heart, MessageCircle, Bookmark, Send, Briefcase, Tag, Target, MoreVertical } from 'lucide-react';
 
@@ -44,22 +44,79 @@ export const FeedItem: React.FC<FeedItemProps> = ({ post, onOpenProfile }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [canExpand, setCanExpand] = useState(false);
     const summaryRef = useRef<HTMLParagraphElement>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
 
-    useEffect(() => {
-        const element = summaryRef.current;
-        if (element) {
-            // Check if the text is overflowing its container, which means it's being clamped.
-            if (element.scrollHeight > element.clientHeight) {
-                setCanExpand(true);
-            } else {
-                setCanExpand(false);
-            }
-        }
-    }, [post.summary]);
-    
-    // Reset expanded state when scrolling to a new post
-    useEffect(() => {
+    useLayoutEffect(() => {
+        // Reset states for a new post to ensure correct initial rendering
         setIsExpanded(false);
+        setCanExpand(false);
+
+        const element = summaryRef.current;
+        if (!element) return;
+
+        // Check if the summary text is overflowing its container after it has rendered.
+        // This determines whether the "...more" button is needed.
+        const checkOverflow = () => {
+            const isClamped = element.scrollHeight > element.clientHeight;
+            setCanExpand(isClamped);
+        };
+        
+        // We use a minimal timeout to ensure the browser has painted and calculated
+        // the layout, especially with dynamic content. This is more reliable than
+        // checking immediately.
+        const timerId = setTimeout(checkOverflow, 50);
+
+        const resizeObserver = new ResizeObserver(() => {
+            // On resize, only re-evaluate for clamping if the text is collapsed.
+            // This prevents the "Show less" button from disappearing if the window
+            // is made wider while the text is expanded.
+            const isCurrentlyCollapsed = element.classList.contains('line-clamp-2');
+            if (isCurrentlyCollapsed) {
+                checkOverflow();
+            }
+        });
+
+        resizeObserver.observe(element);
+
+        // Cleanup function
+        return () => {
+            clearTimeout(timerId);
+            resizeObserver.disconnect();
+        };
+    }, [post.id]); // Re-run this effect only when the post changes
+
+    
+    useEffect(() => {
+        const videoElement = videoRef.current;
+        if (!videoElement) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (entry.isIntersecting) {
+                    const playPromise = videoElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.warn(`Autoplay for video ${post.id} was prevented.`, error);
+                        });
+                    }
+                } else {
+                    videoElement.pause();
+                    videoElement.currentTime = 0;
+                }
+            },
+            {
+                threshold: 0.75,
+            }
+        );
+
+        observer.observe(videoElement);
+
+        return () => {
+            if (videoElement) {
+                observer.unobserve(videoElement);
+            }
+        };
     }, [post.id]);
 
 
@@ -75,7 +132,7 @@ export const FeedItem: React.FC<FeedItemProps> = ({ post, onOpenProfile }) => {
     };
 
     const handleFollow = (e: React.MouseEvent) => {
-        e.stopPropagation(); // Prevent opening profile when following
+        e.stopPropagation();
         setIsFollowing(!isFollowing);
         console.log(isFollowing ? `Unfollowed ${post.author.username}` : `Followed ${post.author.username}`);
     };
@@ -85,9 +142,10 @@ export const FeedItem: React.FC<FeedItemProps> = ({ post, onOpenProfile }) => {
             {post.coverMedia ? (
                 post.coverMedia.type === 'video' ? (
                     <video
-                        key={post.id} // Important for re-rendering when the video source changes
+                        ref={videoRef}
+                        key={post.coverMedia.url}
                         src={post.coverMedia.url}
-                        autoPlay
+                        poster={post.coverMedia.thumbnail}
                         loop
                         muted
                         playsInline
@@ -102,7 +160,7 @@ export const FeedItem: React.FC<FeedItemProps> = ({ post, onOpenProfile }) => {
             <div className={`absolute inset-0 transition-all duration-300 ease-in-out ${isExpanded ? 'bg-black/40 backdrop-blur-sm' : 'bg-gradient-to-t from-black/80 via-black/40 to-transparent'}`}></div>
             
             {/* Content Area (Left side) */}
-            <div className="absolute bottom-20 left-0 right-0 p-4 pr-20 space-y-3 md:bottom-12 md:p-6 md:pr-8">
+            <div className="absolute bottom-4 left-0 right-0 p-4 pr-20 space-y-3 md:bottom-12 md:p-6 md:pr-8">
                 <div className="flex items-center space-x-3">
                     <button onClick={() => onOpenProfile(post.author)} className="flex items-center space-x-3 text-left">
                         <img src={post.author.avatarUrl} alt={post.author.displayName} className="h-10 w-10 md:h-12 md:w-12 rounded-full border-2 border-white/50 object-cover" />
@@ -113,7 +171,7 @@ export const FeedItem: React.FC<FeedItemProps> = ({ post, onOpenProfile }) => {
                     </button>
                     <button 
                         onClick={handleFollow}
-                        className={`ml-auto font-semibold text-sm px-3 py-1 md:px-4 md:py-1.5 rounded-lg transition-colors ${isFollowing ? 'bg-white/20 text-white' : 'bg-primary text-background hover:bg-white/90'}`}
+                        className={`ml-auto font-semibold text-sm px-3 py-1 md:px-4 md:py-1.5 rounded-lg transition-colors ${isFollowing ? 'bg-white/20 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
                     >
                         {isFollowing ? 'Following' : 'Follow'}
                     </button>
@@ -130,50 +188,48 @@ export const FeedItem: React.FC<FeedItemProps> = ({ post, onOpenProfile }) => {
                            {isExpanded ? 'Show less' : '...more'}
                         </button>
                     )}
-                    {(!canExpand || isExpanded) && (
-                        <div className="flex flex-wrap gap-2 mt-3 animate-fade-in">
-                            <div className={`flex items-center text-xs border rounded-full px-2.5 py-1 capitalize ${typeColors[post.type]}`}>
-                                <Target size={12} className="mr-1.5" /> {post.type}
-                            </div>
-                            {post.industries.map(industry => (
-                                <StatPill key={industry} icon={<Briefcase size={12} />} label={industry} />
-                            ))}
-                            {post.tags.slice(0, 2).map(tag => (
-                                <StatPill key={tag} icon={<Tag size={12} />} label={tag} />
-                            ))}
+                    <div className={`flex flex-wrap gap-2 mt-3 ${canExpand && !isExpanded ? 'hidden' : 'animate-fade-in'}`}>
+                        <div className={`flex items-center text-xs border rounded-full px-2.5 py-1 capitalize ${typeColors[post.type]}`}>
+                            <Target size={12} className="mr-1.5" /> {post.type}
                         </div>
-                    )}
+                        {post.industries.map(industry => (
+                            <StatPill key={industry} icon={<Briefcase size={12} />} label={industry} />
+                        ))}
+                        {post.tags.slice(0, 2).map(tag => (
+                            <StatPill key={tag} icon={<Tag size={12} />} label={tag} />
+                        ))}
+                    </div>
                 </div>
             </div>
 
             {/* Actions Area (Right side) */}
-            <div className="absolute right-3 md:right-4 bottom-20 flex flex-col items-center space-y-2 md:bottom-12">
+            <div className="absolute right-3 md:right-4 bottom-4 flex flex-col items-center space-y-2 md:bottom-12">
                 <div className="flex flex-col items-center">
-                    <button onClick={handleLike} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform">
+                    <button onClick={handleLike} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform" aria-label={isLiked ? 'Unlike post' : 'Like post'}>
                         <Heart className={`w-6 h-6 transition-colors ${isLiked ? 'text-red-500 fill-current' : ''}`} />
                     </button>
                     <span className="text-xs font-bold mt-1">{formatStat(likeCount)}</span>
                 </div>
                 <div className="flex flex-col items-center">
-                    <button onClick={() => console.log('Comment on post', post.id)} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform">
+                    <button onClick={() => console.log('Comment on post', post.id)} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform" aria-label="Comment on post">
                         <MessageCircle className="w-6 h-6" />
                     </button>
                     <span className="text-xs font-bold mt-1">{formatStat(post.stats.comments)}</span>
                 </div>
                 <div className="flex flex-col items-center">
-                    <button onClick={handleSave} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform">
+                    <button onClick={handleSave} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform" aria-label={isSaved ? 'Unsave post' : 'Save post'}>
                         <Bookmark className={`w-6 h-6 transition-colors ${isSaved ? 'text-yellow-400 fill-current' : ''}`} />
                     </button>
                     <span className="text-xs font-bold mt-1">{formatStat(post.stats.saves)}</span>
                 </div>
                 <div className="flex flex-col items-center">
-                    <button onClick={() => console.log('Share post', post.id)} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform">
+                    <button onClick={() => console.log('Share post', post.id)} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform" aria-label="Share post">
                         <Send className="w-6 h-6" />
                     </button>
                     <span className="text-xs font-bold mt-1">{formatStat(post.stats.shares)}</span>
                 </div>
                 <div className="flex flex-col items-center">
-                    <button onClick={() => console.log('More options for post', post.id)} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform">
+                    <button onClick={() => console.log('More options for post', post.id)} className="bg-black/40 p-2 rounded-full backdrop-blur-sm transform active:scale-90 transition-transform" aria-label="More options">
                         <MoreVertical className="w-6 h-6" />
                     </button>
                 </div>

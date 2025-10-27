@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Post, PostType, Stage, Highlight, User } from '../types';
 
@@ -5,11 +6,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 // A reliable, hardcoded list of video URLs to be injected client-side.
 const RELIABLE_VIDEO_URLS = [
-    "https://videos.pexels.com/video-files/3209828/3209828-hd_1080_1920_25fps.mp4",
-    "https://videos.pexels.com/video-files/853875/853875-hd_1080_1920_30fps.mp4",
-    "https://videos.pexels.com/video-files/4434252/4434252-hd_1080_1920_25fps.mp4",
-    "https://videos.pexels.com/video-files/5492239/5492239-hd_1080_1920_25fps.mp4",
-    "https://videos.pexels.com/video-files/5997693/5997693-hd_1080_1920_25fps.mp4",
+    "https://videos.pexels.com/video-files/4434246/4434246-hd_720_1280_25fps.mp4",
+    "https://videos.pexels.com/video-files/4690333/4690333-hd_720_1280_25fps.mp4",
+    "https://videos.pexels.com/video-files/8130177/8130177-hd_720_1280_25fps.mp4",
+    "https://videos.pexels.com/video-files/7578544/7578544-hd_720_1280_30fps.mp4",
+    "https://videos.pexels.com/video-files/2882490/2882490-hd_720_1280_25fps.mp4",
 ];
 
 const postSchema = {
@@ -27,6 +28,19 @@ const postSchema = {
                 followerCount: { type: Type.INTEGER, description: 'A random number of followers between 50 and 50000' },
                 followingCount: { type: Type.INTEGER, description: 'A random number of accounts the user is following, between 10 and 1000' },
                 postCount: { type: Type.INTEGER, description: 'A random number of posts the user has made, between 5 and 200' },
+                highlights: {
+                    type: Type.ARRAY,
+                    description: 'An optional array of 1-3 story highlight objects. For each, provide a title and a cover image URL from picsum.photos.',
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING, description: 'Unique ID for the highlight' },
+                            title: { type: Type.STRING, description: 'Title of the highlight, e.g., "SaaS Journey"' },
+                            coverUrl: { type: Type.STRING, description: 'URL for the highlight cover image. Use https://picsum.photos/200?random=[ID]' }
+                        },
+                        required: ['id', 'title', 'coverUrl']
+                    }
+                }
             },
             required: ["id", "username", "displayName", "avatarUrl", "bio", "followerCount", "followingCount", "postCount"],
         },
@@ -85,7 +99,8 @@ const getFallbackData = (): Post[] => {
         tags: ['ai', 'productivity', 'saas', 'startup'],
         industries: ['Software'],
         stage: Stage.Prototype,
-        coverMedia: { type: 'video', url: 'https://videos.pexels.com/video-files/3209828/3209828-hd_1080_1920_25fps.mp4' },
+        coverMedia: { type: 'video', url: 'https://videos.pexels.com/video-files/4434246/4434246-hd_720_1280_25fps.mp4', thumbnail: 'https://picsum.photos/seed/fb2/1080/1920' },
+        is_reel: true,
         stats: { likes: 4200, comments: 153, saves: 890, shares: 72 },
     },
     {
@@ -98,7 +113,8 @@ const getFallbackData = (): Post[] => {
         tags: ['fintech', 'mobile-app', 'education', 'gamification'],
         industries: ['FinTech', 'EdTech'],
         stage: Stage.Launched,
-        coverMedia: { type: 'video', url: 'https://videos.pexels.com/video-files/853875/853875-hd_1080_1920_30fps.mp4' },
+        coverMedia: { type: 'video', url: 'https://videos.pexels.com/video-files/4690333/4690333-hd_720_1280_25fps.mp4', thumbnail: 'https://picsum.photos/seed/fb3/1080/1920' },
+        is_reel: true,
         stats: { likes: 8932, comments: 432, saves: 1500, shares: 210 },
     },
     {
@@ -111,7 +127,8 @@ const getFallbackData = (): Post[] => {
         tags: ['saas', 'video-editing', 'accessibility', 'creator-economy'],
         industries: ['Creator Economy'],
         stage: Stage.Launched,
-        coverMedia: { type: 'video', url: 'https://videos.pexels.com/video-files/4434252/4434252-hd_1080_1920_25fps.mp4' },
+        coverMedia: { type: 'video', url: 'https://videos.pexels.com/video-files/8130177/8130177-hd_720_1280_25fps.mp4', thumbnail: 'https://picsum.photos/seed/fb4/1080/1920' },
+        is_reel: true,
         stats: { likes: 5600, comments: 210, saves: 1100, shares: 95 },
     },
     {
@@ -135,12 +152,15 @@ const injectVideos = (posts: Post[]): Post[] => {
     // For a small number of posts, we can use a simple pattern to inject videos.
     // e.g., make the 2nd and 4th posts videos.
     return posts.map((post, i) => {
-        if (i === 1 || i === 3) {
+        if ((i === 1 || i === 3) && post.coverMedia) {
+            const thumbnailUrl = post.coverMedia.url;
             return {
                 ...post,
+                is_reel: true,
                 coverMedia: {
                     type: 'video',
                     url: RELIABLE_VIDEO_URLS[videoIndex++ % RELIABLE_VIDEO_URLS.length],
+                    thumbnail: thumbnailUrl,
                 },
             };
         }

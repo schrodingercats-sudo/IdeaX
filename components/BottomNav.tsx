@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Home, Compass, PlusSquare, User as UserIcon } from 'lucide-react';
+import { Home, Search, PlusSquare, User as UserIcon } from 'lucide-react';
 import { User, Page } from '../types';
 
 interface NavItemProps {
@@ -38,12 +38,12 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentPage, onNavigate, o
     };
 
     return (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-10 bg-background/80 backdrop-blur-lg border-t border-border px-4 py-2">
+        <div className="md:hidden bg-background/80 backdrop-blur-lg border-t border-border px-4 py-2">
             <div className="flex items-center justify-around">
                 <NavItem icon={<Home size={24} />} label="Home" active={currentPage === 'feed'} onClick={() => handleNavClick('feed')} />
-                <NavItem icon={<Compass size={24} />} label="Discover" active={currentPage === 'explore'} onClick={() => handleNavClick('explore')} />
+                <NavItem icon={<Search size={24} />} label="Search" active={currentPage === 'search'} onClick={() => handleNavClick('search')} />
                 <NavItem icon={<PlusSquare size={24} />} label="Create" onClick={() => handleNavClick('create')} />
-                <NavItem icon={<UserIcon size={24} />} label="Profile" onClick={() => handleNavClick('profile')} />
+                <NavItem icon={<UserIcon size={24} />} label="Profile" onClick={() => onOpenProfile(currentUser)} />
             </div>
         </div>
     );

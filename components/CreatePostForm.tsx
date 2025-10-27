@@ -1,6 +1,8 @@
+
 import React, { useState, useCallback } from 'react';
 import { PostFormData, PostType, Stage, Difficulty, PotentialImpact } from '../types';
-import { UploadCloud, File, X, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { UploadCloud, File, X, ChevronLeft, ChevronRight, Send, ChevronDown } from 'lucide-react';
+import { fileToBase64, generateVideoThumbnail } from '../utils/media';
 
 const TOTAL_STEPS = 5;
 
@@ -28,9 +30,12 @@ const FormTextarea = (props: React.ComponentProps<'textarea'>) => (
 );
 
 const FormSelect = ({ children, ...props }: React.ComponentProps<'select'>) => (
-  <select {...props} className="w-full bg-secondary px-4 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:outline-none appearance-none">
-    {children}
-  </select>
+  <div className="relative w-full">
+    <select {...props} className="w-full bg-secondary pl-4 pr-10 py-3 rounded-lg border border-border focus:ring-2 focus:ring-primary focus:outline-none appearance-none transition-shadow">
+      {children}
+    </select>
+    <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+  </div>
 );
 
 const TagInput: React.FC<{ value: string[], onChange: (value: string[]) => void, placeholder: string }> = ({ value, onChange, placeholder }) => {
@@ -77,6 +82,7 @@ const TagInput: React.FC<{ value: string[], onChange: (value: string[]) => void,
 export const CreatePostForm: React.FC<{ onSubmitSuccess: (formData: PostFormData) => void }> = ({ onSubmitSuccess }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<PostFormData>(initialFormData);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
   const updateFormData = (field: keyof PostFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -89,6 +95,27 @@ export const CreatePostForm: React.FC<{ onSubmitSuccess: (formData: PostFormData
     e.preventDefault();
     console.log('Submitting post:', formData);
     onSubmitSuccess(formData);
+  };
+  
+  const handleCoverMediaChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          updateFormData('coverMedia', file);
+
+          setCoverPreview(null); // Reset preview
+          if (file.type.startsWith('video/')) {
+              try {
+                  const thumb = await generateVideoThumbnail(file);
+                  setCoverPreview(thumb);
+              } catch (error) {
+                  console.error("Could not generate thumbnail", error);
+                  // Optionally set a fallback preview
+              }
+          } else {
+              const previewUrl = await fileToBase64(file);
+              setCoverPreview(previewUrl);
+          }
+      }
   };
 
   const isStep1Valid = formData.title.trim() !== '' && formData.summary.trim() !== '';
@@ -166,12 +193,19 @@ export const CreatePostForm: React.FC<{ onSubmitSuccess: (formData: PostFormData
                     <div className="relative w-full p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-primary">
                         <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                         <p className="mt-2 text-sm text-muted-foreground">Click or drag file to upload</p>
-                        <input type="file" className="opacity-0 absolute inset-0 w-full h-full cursor-pointer" onChange={(e) => e.target.files && updateFormData('coverMedia', e.target.files[0])}/>
+                        <input type="file" accept="image/*,video/*" className="opacity-0 absolute inset-0 w-full h-full cursor-pointer" onChange={handleCoverMediaChange}/>
                     </div>
-                     {formData.coverMedia && <p className="mt-2 text-sm text-muted-foreground">Selected: {formData.coverMedia.name}</p>}
+                    {coverPreview ? (
+                      <div className="mt-4">
+                        <p className="text-sm font-semibold mb-2">Preview:</p>
+                        <img src={coverPreview} alt="Cover media preview" className="w-full max-w-sm mx-auto rounded-lg object-contain" />
+                      </div>
+                    ) : formData.coverMedia && (
+                      <p className="mt-2 text-sm text-muted-foreground">Selected: {formData.coverMedia.name}</p>
+                    )}
                 </div>
                  <div>
-                    <label className="font-semibold mb-2 block">Additional Media</label>
+                    <label className="font-semibold mb-2 block">Additional Media (Optional)</label>
                     <div className="relative w-full p-6 border-2 border-dashed border-border rounded-lg text-center cursor-pointer hover:border-primary">
                         <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
                         <p className="mt-2 text-sm text-muted-foreground">Click or drag files to upload</p>
@@ -180,7 +214,7 @@ export const CreatePostForm: React.FC<{ onSubmitSuccess: (formData: PostFormData
                      {formData.additionalMedia.length > 0 && <div className="mt-2 text-sm text-muted-foreground">Selected: {formData.additionalMedia.map(f => f.name).join(', ')}</div>}
                 </div>
                  <div className="flex items-center justify-between bg-secondary p-3 rounded-lg">
-                    <label htmlFor="is_reel" className="font-semibold">Format as Reel</label>
+                    <label htmlFor="is_reel" className="font-semibold">Format as Reel (Vertical Video)</label>
                      <button type="button" role="switch" aria-checked={formData.is_reel} onClick={() => updateFormData('is_reel', !formData.is_reel)} className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.is_reel ? 'bg-primary' : 'bg-muted'}`}>
                         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.is_reel ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
@@ -201,6 +235,12 @@ export const CreatePostForm: React.FC<{ onSubmitSuccess: (formData: PostFormData
                  </div>
               )
             })}
+            {coverPreview && (
+                <div className="mt-4">
+                  <strong className="capitalize mr-2">Cover Media:</strong>
+                  <img src={coverPreview} alt="Cover media preview" className="w-full max-w-xs mx-auto rounded-lg object-contain mt-2" />
+                </div>
+            )}
           </div>
         );
       default:
